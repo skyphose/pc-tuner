@@ -3,6 +3,8 @@
 Evidence-based Windows gaming & network tweaks, built for auditability.
 MIT licensed — see [LICENSE](LICENSE).
 
+![pc-tuner GUI](docs/screenshot.png)
+
 ## Trust model — why you can verify this isn't malware
 
 The design rule: **tweaks are data, not code.**
@@ -42,10 +44,14 @@ CLI:
 ```powershell
 .\pc-tuner.ps1                      # status of every tweak (read-only)
 .\pc-tuner.ps1 -StatusJson          # machine-readable status (used by GUI)
+.\pc-tuner.ps1 -Apply safe -DryRun  # print exactly what would change, change nothing
 .\pc-tuner.ps1 -Apply safe          # apply all safe-tier tweaks
 .\pc-tuner.ps1 -Apply hags          # apply specific tweak(s)
 .\pc-tuner.ps1 -Revert all          # undo everything from backup
 ```
+
+The GUI shows the same exact change list in a confirmation dialog before
+anything is applied.
 
 Tweaks marked `"risk": "tradeoff"` (currently only `memory-integrity`) are
 never applied by `safe` and require an explicit `-AcceptTradeoffs` flag.
@@ -75,8 +81,12 @@ Drop a `.json` file in `modules/`:
 }
 ```
 
-`default` is what revert falls back to if no backup exists. Duplicate ids
-across modules are rejected at load.
+`default` is what revert falls back to if no backup exists.
+
+Modules are validated at load: unknown action types, missing required
+fields, bad `risk` values, non-HKLM/HKCU registry paths, and duplicate ids
+are all rejected with specific errors — the module is skipped, never
+partially run. Test yours with `.\pc-tuner.ps1 -Apply <id> -DryRun`.
 
 ## Deliberately excluded (researched, found harmful or snake oil)
 

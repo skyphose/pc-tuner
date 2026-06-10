@@ -31,7 +31,8 @@ param(
     [string[]]$Revert,
     [switch]$AcceptTradeoffs,
     [switch]$NoPause,
-    [switch]$StatusJson
+    [switch]$StatusJson,
+    [switch]$DryRun
 )
 
 $ErrorActionPreference = 'Stop'
@@ -163,6 +164,45 @@ function Invoke-ActionRevert($a, $saved, $hasBackup) {
     }
 }
 
+# ------------------------------------------------------- module validation
+
+$ValidActionTypes = 'registry', 'powercfg-scheme', 'netadapter-advanced'
+
+function Test-ModuleErrors($m) {
+    $errors = @()
+    if (-not $m.module) { $errors += 'missing "module" name' }
+    if (-not $m.tweaks) { $errors += 'missing or empty "tweaks" array'; return $errors }
+    foreach ($t in @($m.tweaks)) {
+        if (-not $t.id) { $errors += 'a tweak is missing "id"'; continue }
+        foreach ($field in 'name', 'risk', 'why') {
+            if (-not $t.$field) { $errors += "$($t.id): missing `"$field`"" }
+        }
+        if ($t.risk -and $t.risk -notin 'safe', 'tradeoff') { $errors += "$($t.id): risk must be 'safe' or 'tradeoff'" }
+        if (-not $t.actions) { $errors += "$($t.id): no actions"; continue }
+        foreach ($a in @($t.actions)) {
+            if ($a.type -notin $ValidActionTypes) {
+                $errors += "$($t.id): unknown action type '$($a.type)' (allowed: $($ValidActionTypes -join ', '))"
+                continue
+            }
+            switch ($a.type) {
+                'registry' {
+                    foreach ($f in 'path', 'name') { if (-not $a.$f) { $errors += "$($t.id): registry action missing `"$f`"" } }
+                    if ($null -eq $a.value) { $errors += "$($t.id): registry action missing `"value`"" }
+                    if ($a.path -and $a.path -notmatch '^(HKLM|HKCU):\\') { $errors += "$($t.id): registry path must start with HKLM:\ or HKCU:\" }
+                }
+                'powercfg-scheme' {
+                    if (-not $a.guid) { $errors += "$($t.id): powercfg-scheme action missing `"guid`"" }
+                }
+                'netadapter-advanced' {
+                    if (-not $a.adapter) { $errors += "$($t.id): netadapter-advanced action missing `"adapter`"" }
+                    if (-not $a.properties) { $errors += "$($t.id): netadapter-advanced action missing `"properties`"" }
+                }
+            }
+        }
+    }
+    $errors
+}
+
 # ------------------------------------------------------------ load modules
 
 if (-not (Test-Path $ModulesDir)) { Write-Host "No modules directory at $ModulesDir" -ForegroundColor Red; exit 1 }
@@ -174,6 +214,12 @@ foreach ($f in Get-ChildItem $ModulesDir -Filter '*.json' | Sort-Object Name) {
         $m = Get-Content $f.FullName -Raw | ConvertFrom-Json
     } catch {
         Write-Host "SKIPPING $($f.Name): invalid JSON - $($_.Exception.Message)" -ForegroundColor Red
+        continue
+    }
+    $validationErrors = @(Test-ModuleErrors $m)
+    if ($validationErrors.Count -gt 0) {
+        Write-Host "SKIPPING $($f.Name): failed validation -" -ForegroundColor Red
+        foreach ($e in $validationErrors) { Write-Host "    $e" -ForegroundColor Red }
         continue
     }
     $m | Add-Member -NotePropertyName File -NotePropertyValue $f.Name -Force
@@ -246,6 +292,7 @@ if ($StatusJson) {
                     why         = $t.why
                     applied     = (Test-TweakApplied $t)
                     detail      = (($t.actions | ForEach-Object { Describe-ActionState $_ }) -join '; ')
+                    changes     = @($t.actions | ForEach-Object { Describe-ActionChange $_ })
                 }
             })
         }
@@ -273,7 +320,7 @@ if ($Apply -or $Revert) {
         }
     }
 
-    if ((@($selected | Where-Object needsAdmin).Count -gt 0) -and -not (Test-Admin)) {
+    if ((@($selected | Where-Object needsAdmin).Count -gt 0) -and -not (Test-Admin) -and -not $DryRun) {
         Write-Host "Elevation required - relaunching as admin (accept the UAC prompt)..."
         $argList = @('-ExecutionPolicy','Bypass','-File',"`"$PSCommandPath`"","-$mode",($ids -join ','))
         if ($AcceptTradeoffs) { $argList += '-AcceptTradeoffs' }
@@ -286,6 +333,12 @@ if ($Apply -or $Revert) {
 
     foreach ($t in $selected) {
         try {
+            if ($DryRun) {
+                $verb = if ($mode -eq 'Apply') { 'would apply' } else { 'would revert' }
+                Write-Host "~ $($t.id): $verb" -ForegroundColor Cyan
+                foreach ($a in $t.actions) { Write-Host "    -> $(Describe-ActionChange $a)" }
+                continue
+            }
             if ($mode -eq 'Apply') {
                 if (Test-TweakApplied $t) { Write-Host "= $($t.id): already applied"; continue }
                 # back up original state once (array aligned with actions)

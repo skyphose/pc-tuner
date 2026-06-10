@@ -46,6 +46,7 @@ $xaml = @'
         <Border DockPanel.Dock="Bottom" Margin="0,10,0,0">
             <DockPanel>
                 <Button x:Name="BtnRefresh" DockPanel.Dock="Right" Content="Refresh" Width="90" Margin="8,0,0,0" Padding="0,6"/>
+                <Button x:Name="BtnModules" DockPanel.Dock="Right" Content="Modules..." Width="90" Margin="8,0,0,0" Padding="0,6"/>
                 <Button x:Name="BtnRevertAll" DockPanel.Dock="Right" Content="Revert all" Width="90" Margin="8,0,0,0" Padding="0,6"/>
                 <Button x:Name="BtnApplySafe" DockPanel.Dock="Right" Content="Apply all safe" Width="110" Margin="8,0,0,0" Padding="0,6"/>
                 <TextBlock x:Name="StatusBar" Foreground="#9E9EA8" VerticalAlignment="Center" Text="Ready."/>
@@ -64,6 +65,7 @@ $StatusBar   = $window.FindName('StatusBar')
 $BtnRefresh  = $window.FindName('BtnRefresh')
 $BtnApplySafe = $window.FindName('BtnApplySafe')
 $BtnRevertAll = $window.FindName('BtnRevertAll')
+$BtnModules  = $window.FindName('BtnModules')
 
 # ------------------------------------------------------------ UI builders
 
@@ -147,19 +149,25 @@ function Add-TweakRow($tweak) {
     $btn.Height = 26
     $btn.VerticalAlignment = 'Top'
     $btn.Content = if ($tweak.applied) { 'Revert' } else { 'Apply' }
-    $btn.Tag = @{ id = $tweak.id; applied = $tweak.applied; risk = $tweak.risk; why = $tweak.why; needsReboot = $tweak.needsReboot }
+    $btn.Tag = @{ id = $tweak.id; applied = $tweak.applied; risk = $tweak.risk; why = $tweak.why; needsReboot = $tweak.needsReboot; changes = @($tweak.changes) }
     $btn.Add_Click({
         param($s, $e)
         $info = $s.Tag
         $accept = $false
-        if (-not $info.applied -and $info.risk -eq 'tradeoff') {
-            $answer = [Windows.MessageBox]::Show(
-                "This tweak is a real tradeoff:`n`n$($info.why)`n`nApply it anyway?",
-                'pc-tuner - tradeoff', 'YesNo', 'Warning')
-            if ($answer -ne 'Yes') { return }
-            $accept = $true
-        }
         $mode = if ($info.applied) { 'Revert' } else { 'Apply' }
+        if ($mode -eq 'Apply') {
+            $changeList = ($info.changes | ForEach-Object { "  -  $_" }) -join "`n"
+            $header = "This will make exactly these changes:`n`n$changeList"
+            if ($info.risk -eq 'tradeoff') {
+                $header = "TRADEOFF - read first:`n$($info.why)`n`n$header"
+                $answer = [Windows.MessageBox]::Show("$header`n`nApply anyway?", 'pc-tuner - tradeoff', 'YesNo', 'Warning')
+                if ($answer -ne 'Yes') { return }
+                $accept = $true
+            } else {
+                $answer = [Windows.MessageBox]::Show("$header`n`nProceed?", "pc-tuner - apply $($info.id)", 'YesNo', 'Question')
+                if ($answer -ne 'Yes') { return }
+            }
+        }
         $StatusBar.Text = "$mode`: $($info.id)... (accept the UAC prompt if one appears)"
         $window.Cursor = 'Wait'
         try { Invoke-Engine $mode $info.id $accept } finally { $window.Cursor = $null }
@@ -194,6 +202,7 @@ function Refresh-List {
 }
 
 $BtnRefresh.Add_Click({ Refresh-List })
+$BtnModules.Add_Click({ Start-Process explorer.exe (Join-Path $PSScriptRoot 'modules') })
 $BtnApplySafe.Add_Click({
     $StatusBar.Text = 'Applying all safe tweaks... (accept the UAC prompt)'
     $window.Cursor = 'Wait'
