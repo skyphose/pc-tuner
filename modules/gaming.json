@@ -85,6 +85,24 @@
       ]
     },
     {
+      "id": "windowed-optimizations",
+      "name": "Optimizations for windowed games on",
+      "risk": "safe",
+      "needsAdmin": false,
+      "needsReboot": false,
+      "why": "Upgrades borderless/windowed DX10/11 games from legacy blt presentation to the flip model - near-exclusive-fullscreen latency without true fullscreen. Microsoft's own recommended setting; especially helps multi-monitor mixed-refresh setups.",
+      "actions": [
+        {
+          "type": "registry-flags",
+          "path": "HKCU:\\Software\\Microsoft\\DirectX\\UserGpuPreferences",
+          "name": "DirectXUserGlobalSettings",
+          "flags": [
+            { "key": "SwapEffectUpgradeEnable", "value": "1" }
+          ]
+        }
+      ]
+    },
+    {
       "id": "memory-integrity",
       "name": "Memory Integrity (HVCI) off [SECURITY TRADEOFF]",
       "risk": "tradeoff",

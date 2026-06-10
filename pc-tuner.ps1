@@ -67,9 +67,25 @@ function Save-Backup($backup) {
 # Each action type implements: state (current value), applied (bool),
 # describe (human string), apply, revert($saved, $hasBackup).
 
+function ConvertFrom-FlagString($s) {
+    $h = [ordered]@{}
+    foreach ($pair in ("$s" -split ';' | Where-Object { $_ -match '=' })) {
+        $k, $v = $pair -split '=', 2
+        $h[$k.Trim()] = $v.Trim()
+    }
+    $h
+}
+
+function ConvertTo-FlagString($h) {
+    (($h.Keys | ForEach-Object { "$_=$($h[$_])" }) -join ';') + ';'
+}
+
 function Get-ActionState($a) {
     switch ($a.type) {
         'registry' {
+            Get-RegValue $a.path $a.name
+        }
+        'registry-flags' {
             Get-RegValue $a.path $a.name
         }
         'powercfg-scheme' {
@@ -91,6 +107,11 @@ function Get-ActionState($a) {
 function Test-ActionApplied($a) {
     switch ($a.type) {
         'registry' { (Get-ActionState $a) -eq $a.value }
+        'registry-flags' {
+            $cur = ConvertFrom-FlagString (Get-ActionState $a)
+            $bad = @($a.flags | Where-Object { $cur[$_.key] -ne "$($_.value)" })
+            $bad.Count -eq 0
+        }
         'powercfg-scheme' { (Get-ActionState $a) -eq $a.guid }
         'netadapter-advanced' {
             $cur = Get-ActionState $a
@@ -103,6 +124,10 @@ function Test-ActionApplied($a) {
 function Describe-ActionState($a) {
     switch ($a.type) {
         'registry' { "$($a.name)=$(Get-ActionState $a)" }
+        'registry-flags' {
+            $cur = ConvertFrom-FlagString (Get-ActionState $a)
+            ($a.flags | ForEach-Object { "$($_.key)=$($cur[$_.key])" }) -join ', '
+        }
         'powercfg-scheme' {
             $out = "$(powercfg /getactivescheme)"
             if ($out -match '\((.+)\)') { "active: $($Matches[1])" } else { 'active: unknown' }
@@ -117,6 +142,7 @@ function Describe-ActionState($a) {
 function Describe-ActionChange($a) {
     switch ($a.type) {
         'registry' { "set $($a.path)\$($a.name) = $($a.value)" }
+        'registry-flags' { "merge into $($a.path)\$($a.name): " + (($a.flags | ForEach-Object { "$($_.key)=$($_.value)" }) -join ', ') + ' (other flags preserved)' }
         'powercfg-scheme' { "activate power scheme $($a.guid)" }
         'netadapter-advanced' { "set adapter '$($a.adapter)': " + (($a.properties | ForEach-Object { "$($_.displayName)=$($_.value)" }) -join ', ') }
     }
@@ -125,6 +151,11 @@ function Describe-ActionChange($a) {
 function Invoke-ActionApply($a) {
     switch ($a.type) {
         'registry' { Set-RegValue $a.path $a.name $a.value $a.valueType }
+        'registry-flags' {
+            $cur = ConvertFrom-FlagString (Get-ActionState $a)
+            foreach ($f in $a.flags) { $cur[$f.key] = "$($f.value)" }
+            Set-RegValue $a.path $a.name (ConvertTo-FlagString $cur) 'String'
+        }
         'powercfg-scheme' { powercfg /setactive $a.guid | Out-Null }
         'netadapter-advanced' {
             foreach ($p in $a.properties) {
@@ -137,6 +168,17 @@ function Invoke-ActionApply($a) {
 
 function Invoke-ActionRevert($a, $saved, $hasBackup) {
     switch ($a.type) {
+        'registry-flags' {
+            if ($hasBackup) {
+                if ($null -eq $saved) { Remove-ItemProperty -Path $a.path -Name $a.name -ErrorAction SilentlyContinue }
+                else { Set-RegValue $a.path $a.name $saved 'String' }
+            } else {
+                # no backup: strip only our flags, preserve the rest
+                $cur = ConvertFrom-FlagString (Get-ActionState $a)
+                foreach ($f in $a.flags) { $cur.Remove($f.key) }
+                Set-RegValue $a.path $a.name (ConvertTo-FlagString $cur) 'String'
+            }
+        }
         'registry' {
             $target = if ($hasBackup) { $saved } else { $a.default }
             if ($null -eq $target) {
@@ -166,7 +208,7 @@ function Invoke-ActionRevert($a, $saved, $hasBackup) {
 
 # ------------------------------------------------------- module validation
 
-$ValidActionTypes = 'registry', 'powercfg-scheme', 'netadapter-advanced'
+$ValidActionTypes = 'registry', 'registry-flags', 'powercfg-scheme', 'netadapter-advanced'
 
 function Test-ModuleErrors($m) {
     $errors = @()
@@ -188,6 +230,11 @@ function Test-ModuleErrors($m) {
                 'registry' {
                     foreach ($f in 'path', 'name') { if (-not $a.$f) { $errors += "$($t.id): registry action missing `"$f`"" } }
                     if ($null -eq $a.value) { $errors += "$($t.id): registry action missing `"value`"" }
+                    if ($a.path -and $a.path -notmatch '^(HKLM|HKCU):\\') { $errors += "$($t.id): registry path must start with HKLM:\ or HKCU:\" }
+                }
+                'registry-flags' {
+                    foreach ($f in 'path', 'name') { if (-not $a.$f) { $errors += "$($t.id): registry-flags action missing `"$f`"" } }
+                    if (-not $a.flags) { $errors += "$($t.id): registry-flags action missing `"flags`"" }
                     if ($a.path -and $a.path -notmatch '^(HKLM|HKCU):\\') { $errors += "$($t.id): registry path must start with HKLM:\ or HKCU:\" }
                 }
                 'powercfg-scheme' {
