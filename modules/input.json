@@ -1,0 +1,40 @@
+{
+  "module": "input",
+  "description": "Input consistency tweaks - no executable code, pure data interpreted by pc-tuner.ps1",
+  "tweaks": [
+    {
+      "id": "mouse-accel",
+      "name": "Mouse acceleration (Enhance Pointer Precision) off",
+      "risk": "safe",
+      "needsAdmin": false,
+      "needsReboot": false,
+      "why": "Acceleration makes cursor distance depend on speed - bad for aim consistency. Most games bypass it, but desktop/menu aim stays consistent with it off.",
+      "actions": [
+        {
+          "type": "registry",
+          "path": "HKCU:\\Control Panel\\Mouse",
+          "name": "MouseSpeed",
+          "value": "0",
+          "valueType": "String",
+          "default": "1"
+        },
+        {
+          "type": "registry",
+          "path": "HKCU:\\Control Panel\\Mouse",
+          "name": "MouseThreshold1",
+          "value": "0",
+          "valueType": "String",
+          "default": "6"
+        },
+        {
+          "type": "registry",
+          "path": "HKCU:\\Control Panel\\Mouse",
+          "name": "MouseThreshold2",
+          "value": "0",
+          "valueType": "String",
+          "default": "10"
+        }
+      ]
+    }
+  ]
+}

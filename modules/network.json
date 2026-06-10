@@ -1,0 +1,26 @@
+{
+  "module": "network",
+  "description": "Network reliability fixes - no executable code, pure data interpreted by pc-tuner.ps1",
+  "tweaks": [
+    {
+      "id": "ethernet-powersave",
+      "name": "Realtek Ethernet power-saving off",
+      "risk": "safe",
+      "needsAdmin": true,
+      "needsReboot": false,
+      "why": "Green Ethernet / Power Saving Mode / Gigabit Lite cause random link drops and speed downshifts on Realtek NICs. From the 2026-06-09 dropout diagnosis.",
+      "actions": [
+        {
+          "type": "netadapter-advanced",
+          "adapter": "Ethernet",
+          "restart": true,
+          "properties": [
+            { "displayName": "Green Ethernet", "value": "Disabled" },
+            { "displayName": "Power Saving Mode", "value": "Disabled" },
+            { "displayName": "Gigabit Lite", "value": "Disabled" }
+          ]
+        }
+      ]
+    }
+  ]
+}

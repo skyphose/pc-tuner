@@ -1,0 +1,106 @@
+{
+  "module": "gaming",
+  "description": "Evidence-based FPS/latency tweaks - no executable code, pure data interpreted by pc-tuner.ps1",
+  "tweaks": [
+    {
+      "id": "power-plan",
+      "name": "High Performance power plan",
+      "risk": "safe",
+      "needsAdmin": false,
+      "needsReboot": false,
+      "why": "Balanced parks/downclocks cores between frames. One of the few tweaks with consistent measurable benefit. Costs idle watts; trivial on a desktop.",
+      "actions": [
+        {
+          "type": "powercfg-scheme",
+          "guid": "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c",
+          "default": "381b4222-f694-41f0-9685-ff5bb260df2e"
+        }
+      ]
+    },
+    {
+      "id": "hags",
+      "name": "Hardware-Accelerated GPU Scheduling on",
+      "risk": "safe",
+      "needsAdmin": true,
+      "needsReboot": true,
+      "why": "GPU manages its own memory scheduling - slightly lower input latency, steadier frametimes in DX12/Vulkan. Recommended for RTX 20-series / RX 6000 and newer; skip on older GPUs.",
+      "actions": [
+        {
+          "type": "registry",
+          "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers",
+          "name": "HwSchMode",
+          "value": 2,
+          "valueType": "DWord"
+        }
+      ]
+    },
+    {
+      "id": "game-mode",
+      "name": "Game Mode explicitly on",
+      "risk": "safe",
+      "needsAdmin": false,
+      "needsReboot": false,
+      "why": "Deprioritizes background services while a game runs. Main benefit is steadier 1% lows, not raw FPS. No downside.",
+      "actions": [
+        {
+          "type": "registry",
+          "path": "HKCU:\\SOFTWARE\\Microsoft\\GameBar",
+          "name": "AutoGameModeEnabled",
+          "value": 1,
+          "valueType": "DWord"
+        },
+        {
+          "type": "registry",
+          "path": "HKCU:\\SOFTWARE\\Microsoft\\GameBar",
+          "name": "AllowAutoGameMode",
+          "value": 1,
+          "valueType": "DWord"
+        }
+      ]
+    },
+    {
+      "id": "game-dvr",
+      "name": "Game DVR background recording off",
+      "risk": "safe",
+      "needsAdmin": false,
+      "needsReboot": false,
+      "why": "Xbox background capture re-encodes gameplay continuously - measurable FPS cost for a feature most never use. Game Bar overlay itself still works.",
+      "actions": [
+        {
+          "type": "registry",
+          "path": "HKCU:\\System\\GameConfigStore",
+          "name": "GameDVR_Enabled",
+          "value": 0,
+          "valueType": "DWord",
+          "default": 1
+        },
+        {
+          "type": "registry",
+          "path": "HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\GameDVR",
+          "name": "AppCaptureEnabled",
+          "value": 0,
+          "valueType": "DWord",
+          "default": 1
+        }
+      ]
+    },
+    {
+      "id": "memory-integrity",
+      "name": "Memory Integrity (HVCI) off [SECURITY TRADEOFF]",
+      "risk": "tradeoff",
+      "needsAdmin": true,
+      "needsReboot": true,
+      "why": "Biggest single FPS item: 5-15% in CPU-bound games. BUT it is a real security feature blocking malicious kernel drivers. Reasonable on a pure gaming rig; keep it on if unsure.",
+      "actions": [
+        {
+          "type": "registry",
+          "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\DeviceGuard\\Scenarios\\HypervisorEnforcedCodeIntegrity",
+          "name": "Enabled",
+          "value": 0,
+          "valueType": "DWord",
+          "default": 1
+        }
+      ]
+    }
+  ]
+}
