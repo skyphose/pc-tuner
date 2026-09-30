@@ -1,17 +1,17 @@
 # pc-tuner
 
 Evidence-based Windows gaming & network tweaks, built for auditability.
-MIT licensed — see [LICENSE](LICENSE).
+MIT licensed - see [LICENSE](LICENSE).
 
 ![pc-tuner GUI](docs/screenshot.png)
 
-## Trust model — why you can verify this isn't malware
+## Trust model - why you can verify this isn't malware
 
 The design rule: **tweaks are data, not code.**
 
 - All executable logic lives in one file: [`pc-tuner.ps1`](pc-tuner.ps1) (~300 lines of
-  plain PowerShell — read it once, you've audited everything that can run).
-- Tweaks live in [`modules/*.json`](modules/) — **pure JSON, no code**. A module can
+  plain PowerShell - read it once, you've audited everything that can run).
+- Tweaks live in [`modules/*.json`](modules/) - **pure JSON, no code**. A module can
   only *describe* changes using the engine's fixed action vocabulary:
 
   | action | what it can do |
@@ -35,7 +35,7 @@ powershell -ExecutionPolicy Bypass -File .\pc-tuner-gui.ps1
 ```
 
 The GUI ([`pc-tuner-gui.ps1`](pc-tuner-gui.ps1)) is also a single plain-text
-PowerShell/WPF script — no compiled binaries anywhere in this project. It
+PowerShell/WPF script - no compiled binaries anywhere in this project. It
 never modifies the system itself; every Apply/Revert shells out to the
 engine, so the engine remains the single audited modification path.
 
@@ -85,19 +85,19 @@ Drop a `.json` file in `modules/`:
 
 Modules are validated at load: unknown action types, missing required
 fields, bad `risk` values, non-HKLM/HKCU registry paths, and duplicate ids
-are all rejected with specific errors — the module is skipped, never
+are all rejected with specific errors - the module is skipped, never
 partially run. Test yours with `.\pc-tuner.ps1 -Apply <id> -DryRun`.
 
 ## Deliberately excluded (researched, found harmful or snake oil)
 
-- `NetworkThrottlingIndex` / `SystemResponsiveness` hacks — increase DPC
+- `NetworkThrottlingIndex` / `SystemResponsiveness` hacks - increase DPC
   latency and cause audio crackle, especially on Ryzen
-- `TcpAckFrequency` / Nagle tweaks — no measurable modern benefit
-- Disabling the page file — causes crashes when RAM fills
-- Timer-resolution forcing tools — thrash a core; mostly placebo since the
+- `TcpAckFrequency` / Nagle tweaks - no measurable modern benefit
+- Disabling the page file - causes crashes when RAM fills
+- Timer-resolution forcing tools - thrash a core; mostly placebo since the
   Windows 2004 rule change
-- Debloat scripts / stripping services — break WebView2 apps (Discord,
+- Debloat scripts / stripping services - break WebView2 apps (Discord,
   Steam), search, sometimes Explorer itself
-- Disabling Windows Defender — no
+- Disabling Windows Defender - no
 
 PRs adding these will be declined with citations.
