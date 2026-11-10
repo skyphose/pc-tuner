@@ -1,6 +1,6 @@
 # pc-tuner
 
-**Evidence-based Windows gaming & network tweaks — data-only modules, an auditable engine, and full backup/revert.**
+**Evidence-based Windows gaming & network tweaks - data-only modules, an auditable engine, and full backup/revert.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![PowerShell 5.1+](https://img.shields.io/badge/PowerShell-5.1%2B-5391FE?logo=powershell&logoColor=white)](https://learn.microsoft.com/powershell/)
@@ -10,7 +10,7 @@
 
 ---
 
-## ⚠️ WARNING — read before running
+## ⚠️ WARNING - read before running
 
 **This tool modifies Windows: registry values, the active power plan, and network
 adapter settings.** It is designed to be safe and reversible, but you should
@@ -39,25 +39,25 @@ understand what that means:
 
 ## Features
 
-- 🎮 **Evidence-based tweaks only** — every tweak documents *why* it works and
+- 🎮 **Evidence-based tweaks only** - every tweak documents *why* it works and
   cites the reasoning; known snake oil is explicitly excluded.
-- 🔍 **Fully auditable** — one ~300-line engine script is the only executable
+- 🔍 **Fully auditable** - one ~300-line engine script is the only executable
   code that can modify your system; tweak modules are pure JSON data.
 - 💾 **Automatic backup & one-command revert** of every original value.
-- 🖥️ **GUI and CLI** — a WPF front end for point-and-click, a scriptable CLI
+- 🖥️ **GUI and CLI** - a WPF front end for point-and-click, a scriptable CLI
   with dry-run and machine-readable status.
-- 🛡️ **Risk tiers** — `safe` tweaks are one command; `tradeoff` tweaks require
+- 🛡️ **Risk tiers** - `safe` tweaks are one command; `tradeoff` tweaks require
   explicit opt-in.
-- 🧩 **Extensible** — drop a validated JSON file in `modules/` to add a tweak pack.
+- 🧩 **Extensible** - drop a validated JSON file in `modules/` to add a tweak pack.
 
-## Trust model — why you can verify this isn't malware
+## Trust model - why you can verify this isn't malware
 
 The design rule: **tweaks are data, not code.**
 
 - All executable logic lives in one file: [`pc-tuner.ps1`](pc-tuner.ps1) (~300
-  lines of plain PowerShell — read it once, you've audited everything that can
+  lines of plain PowerShell - read it once, you've audited everything that can
   run).
-- Tweaks live in [`modules/*.json`](modules/) — **pure JSON, no code**. A module
+- Tweaks live in [`modules/*.json`](modules/) - **pure JSON, no code**. A module
   can only *describe* changes using the engine's fixed action vocabulary:
 
   | action | what it can do |
@@ -73,14 +73,14 @@ The design rule: **tweaks are data, not code.**
   `.\pc-tuner.ps1 -Revert all` restores your exact original state.
 - When applying, the engine prints every individual change it makes.
 - The GUI ([`pc-tuner-gui.ps1`](pc-tuner-gui.ps1)) is also a single plain-text
-  PowerShell/WPF script — no compiled binaries anywhere in this project. It
+  PowerShell/WPF script - no compiled binaries anywhere in this project. It
   never modifies the system itself; every Apply/Revert shells out to the
   engine, so the engine remains the single audited modification path.
 
 ## Requirements
 
 - **Windows 10 or 11** (64-bit)
-- **PowerShell 5.1+** (the version built into Windows — no install needed)
+- **PowerShell 5.1+** (the version built into Windows - no install needed)
 - **Administrator rights** for tweaks that touch `HKLM` or network adapters
   (the tool re-launches itself elevated via UAC when needed; status and HKCU
   tweaks work without elevation)
@@ -94,7 +94,7 @@ cd pc-tuner
 
 Or download and extract the
 [latest release ZIP](https://github.com/skyphose/pc-tuner/archive/refs/heads/main.zip).
-There is nothing to install — the scripts run in place.
+There is nothing to install - the scripts run in place.
 
 ## Usage
 
@@ -125,14 +125,14 @@ Every run is also transcribed to `pc-tuner-last-run.log`.
 
 | Module | Tweak | Risk | Admin | Reboot | What it does |
 |---|---|---|---|---|---|
-| gaming | `power-plan` | safe | – | – | Activates the High Performance power plan |
+| gaming | `power-plan` | safe | - | - | Activates the High Performance power plan |
 | gaming | `hags` | safe | ✓ | ✓ | Hardware-Accelerated GPU Scheduling on |
-| gaming | `game-mode` | safe | – | – | Game Mode explicitly on |
-| gaming | `game-dvr` | safe | – | – | Game DVR background recording off (Game Bar still works) |
-| gaming | `windowed-optimizations` | safe | – | – | Flip-model presentation for borderless/windowed DX10/11 games |
-| gaming | `memory-integrity` | **tradeoff** | ✓ | ✓ | HVCI off — 5–15% in CPU-bound games, real security tradeoff |
-| input | `mouse-accel` | safe | – | – | "Enhance Pointer Precision" (mouse acceleration) off |
-| network | `ethernet-powersave` | safe | ✓ | – | Green Ethernet / Power Saving Mode / Gigabit Lite off on Realtek NICs |
+| gaming | `game-mode` | safe | - | - | Game Mode explicitly on |
+| gaming | `game-dvr` | safe | - | - | Game DVR background recording off (Game Bar still works) |
+| gaming | `windowed-optimizations` | safe | - | - | Flip-model presentation for borderless/windowed DX10/11 games |
+| gaming | `memory-integrity` | **tradeoff** | ✓ | ✓ | HVCI off - 5-15% in CPU-bound games, real security tradeoff |
+| input | `mouse-accel` | safe | - | - | "Enhance Pointer Precision" (mouse acceleration) off |
+| network | `ethernet-powersave` | safe | ✓ | - | Green Ethernet / Power Saving Mode / Gigabit Lite off on Realtek NICs |
 
 Each tweak's `why` field (shown in the GUI and `-StatusJson`) documents the
 evidence behind it.
@@ -179,29 +179,29 @@ Drop a `.json` file in `modules/`:
 
 Modules are validated at load: unknown action types, missing required fields,
 bad `risk` values, non-HKLM/HKCU registry paths, and duplicate ids are all
-rejected with specific errors — the module is skipped, never partially run.
+rejected with specific errors - the module is skipped, never partially run.
 Test yours with `.\pc-tuner.ps1 -Apply <id> -DryRun`.
 
 ## Deliberately excluded (researched, found harmful or snake oil)
 
-- `NetworkThrottlingIndex` / `SystemResponsiveness` hacks — increase DPC
+- `NetworkThrottlingIndex` / `SystemResponsiveness` hacks - increase DPC
   latency and cause audio crackle, especially on Ryzen
-- `TcpAckFrequency` / Nagle tweaks — no measurable modern benefit
-- Disabling the page file — causes crashes when RAM fills
-- Timer-resolution forcing tools — thrash a core; mostly placebo since the
+- `TcpAckFrequency` / Nagle tweaks - no measurable modern benefit
+- Disabling the page file - causes crashes when RAM fills
+- Timer-resolution forcing tools - thrash a core; mostly placebo since the
   Windows 2004 rule change
-- Debloat scripts / stripping services — break WebView2 apps (Discord,
+- Debloat scripts / stripping services - break WebView2 apps (Discord,
   Steam), search, sometimes Explorer itself
-- Disabling Windows Defender — no
+- Disabling Windows Defender - no
 
 PRs adding these will be declined with citations.
 
 ## Contributing
 
-Contributions are welcome — especially new tweak modules with real evidence.
+Contributions are welcome - especially new tweak modules with real evidence.
 
 1. Fork the repo and create a branch.
-2. Add or edit a module in `modules/` (pure JSON — see
+2. Add or edit a module in `modules/` (pure JSON - see
    [Writing a module](#writing-a-module)). Engine changes should be rare and
    must preserve the "modules are data" trust model.
 3. Verify with `.\pc-tuner.ps1 -Apply <id> -DryRun` and make sure CI
