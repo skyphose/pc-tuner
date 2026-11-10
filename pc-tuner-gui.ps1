@@ -1,5 +1,5 @@
 # =====================================================================
-#  pc-tuner-gui.ps1 — WPF front end for pc-tuner
+#  pc-tuner-gui.ps1 - WPF front end for pc-tuner
 #
 #  Same trust model as the engine: one plain-text PowerShell script,
 #  no compiled binaries. The GUI never changes your system itself -
@@ -21,15 +21,18 @@ Add-Type -AssemblyName PresentationFramework
 
 # ------------------------------------------------------------ engine I/O
 
+# Status is read-only, so it runs in this process (no extra powershell.exe
+# per refresh). Apply/Revert still go through a separate engine process,
+# which elevates itself when a tweak needs admin.
 function Get-TunerStatus {
-    $raw = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $EnginePath -StatusJson
+    $raw = & $EnginePath -StatusJson
     @(($raw -join "`n") | ConvertFrom-Json)
 }
 
 function Invoke-Engine($mode, $id, $acceptTradeoffs) {
     $argList = @('-NoProfile','-ExecutionPolicy','Bypass','-File',"`"$EnginePath`"","-$mode",$id,'-NoPause')
     if ($acceptTradeoffs) { $argList += '-AcceptTradeoffs' }
-    Start-Process powershell -ArgumentList $argList -Wait -WindowStyle Hidden
+    Start-Process (Join-Path $PSHOME 'powershell.exe') -ArgumentList $argList -Wait -WindowStyle Hidden
 }
 
 # ------------------------------------------------------------------ XAML
@@ -69,8 +72,16 @@ $BtnModules  = $window.FindName('BtnModules')
 
 # ------------------------------------------------------------ UI builders
 
+# One frozen brush per colour, shared by every row.
+$script:Brushes = @{}
+$script:BrushConverter = New-Object Windows.Media.BrushConverter
 function New-Brush($hex) {
-    (New-Object Windows.Media.BrushConverter).ConvertFromString($hex)
+    if (-not $script:Brushes.ContainsKey($hex)) {
+        $b = $script:BrushConverter.ConvertFromString($hex)
+        $b.Freeze()
+        $script:Brushes[$hex] = $b
+    }
+    $script:Brushes[$hex]
 }
 
 $script:RebootPending = $false
@@ -183,7 +194,14 @@ function Add-TweakRow($tweak) {
 
 function Refresh-List {
     $TweakList.Children.Clear()
-    $modules = Get-TunerStatus
+    try { $modules = Get-TunerStatus }
+    catch {
+        $script:Status = @()
+        $StatusBar.Text = "Engine error: $($_.Exception.Message)"
+        if (-not $SelfTest) { [Windows.MessageBox]::Show("The engine failed to read status:`n`n$($_.Exception.Message)", 'pc-tuner - error', 'OK', 'Error') | Out-Null }
+        return
+    }
+    $script:Status = $modules
     foreach ($m in $modules) {
         $hdr = New-Object Windows.Controls.TextBlock
         $hdr.Text = "$($m.module)  -  $($m.file)"
@@ -204,9 +222,15 @@ function Refresh-List {
 $BtnRefresh.Add_Click({ Refresh-List })
 $BtnModules.Add_Click({ Start-Process explorer.exe (Join-Path $PSScriptRoot 'modules') })
 $BtnApplySafe.Add_Click({
+    $pending = @($script:Status.tweaks | Where-Object { $_.risk -eq 'safe' -and -not $_.applied })
+    if ($pending.Count -eq 0) { [Windows.MessageBox]::Show('All safe tweaks are already applied.', 'pc-tuner') | Out-Null; return }
+    $changeList = ($pending | ForEach-Object { "$($_.id):`n" + (($_.changes | ForEach-Object { "  -  $_" }) -join "`n") }) -join "`n`n"
+    $answer = [Windows.MessageBox]::Show("This will make exactly these changes:`n`n$changeList`n`nProceed?", 'pc-tuner - apply all safe', 'YesNo', 'Question')
+    if ($answer -ne 'Yes') { return }
     $StatusBar.Text = 'Applying all safe tweaks... (accept the UAC prompt)'
     $window.Cursor = 'Wait'
-    try { Invoke-Engine 'Apply' 'safe' $false } finally { $window.Cursor = $null }
+    # pass the exact ids shown, not 'safe', so nothing unlisted gets applied
+    try { Invoke-Engine 'Apply' (@($pending.id) -join ',') $false } finally { $window.Cursor = $null }
     $script:RebootPending = $true
     Refresh-List
 })
