@@ -1,5 +1,5 @@
 # =====================================================================
-#  pc-tuner-gui.ps1 — WPF front end for pc-tuner
+#  pc-tuner-gui.ps1 - WPF front end for pc-tuner
 #
 #  Same trust model as the engine: one plain-text PowerShell script,
 #  no compiled binaries. The GUI never changes your system itself -
@@ -21,8 +21,11 @@ Add-Type -AssemblyName PresentationFramework
 
 # ------------------------------------------------------------ engine I/O
 
+# Status is read-only, so it runs in this process (no extra powershell.exe
+# per refresh). Apply/Revert still go through a separate engine process,
+# which elevates itself when a tweak needs admin.
 function Get-TunerStatus {
-    $raw = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $EnginePath -StatusJson
+    $raw = & $EnginePath -StatusJson
     @(($raw -join "`n") | ConvertFrom-Json)
 }
 
@@ -69,8 +72,16 @@ $BtnModules  = $window.FindName('BtnModules')
 
 # ------------------------------------------------------------ UI builders
 
+# One frozen brush per colour, shared by every row.
+$script:Brushes = @{}
+$script:BrushConverter = New-Object Windows.Media.BrushConverter
 function New-Brush($hex) {
-    (New-Object Windows.Media.BrushConverter).ConvertFromString($hex)
+    if (-not $script:Brushes.ContainsKey($hex)) {
+        $b = $script:BrushConverter.ConvertFromString($hex)
+        $b.Freeze()
+        $script:Brushes[$hex] = $b
+    }
+    $script:Brushes[$hex]
 }
 
 $script:RebootPending = $false

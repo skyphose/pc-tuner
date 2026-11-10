@@ -41,7 +41,7 @@ understand what that means:
 
 - 🎮 **Evidence-based tweaks only** - every tweak documents *why* it works and
   cites the reasoning; known snake oil is explicitly excluded.
-- 🔍 **Fully auditable** - one ~300-line engine script is the only executable
+- 🔍 **Fully auditable** - one ~430-line engine script is the only executable
   code that can modify your system; tweak modules are pure JSON data.
 - 💾 **Automatic backup & one-command revert** of every original value.
 - 🖥️ **GUI and CLI** - a WPF front end for point-and-click, a scriptable CLI
@@ -54,7 +54,7 @@ understand what that means:
 
 The design rule: **tweaks are data, not code.**
 
-- All executable logic lives in one file: [`pc-tuner.ps1`](pc-tuner.ps1) (~300
+- All executable logic lives in one file: [`pc-tuner.ps1`](pc-tuner.ps1) (~430
   lines of plain PowerShell - read it once, you've audited everything that can
   run).
 - Tweaks live in [`modules/*.json`](modules/) - **pure JSON, no code**. A module
